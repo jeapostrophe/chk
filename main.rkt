@@ -3,7 +3,8 @@
          racket/list
          syntax/parse/define
          (for-syntax racket/base
-                     syntax/parse)
+                     syntax/parse
+                     syntax/srcloc)
          syntax/quote
          syntax/srcloc
          rackunit/log)
@@ -14,10 +15,12 @@
       (call-with-values (λ () e)
                         (λ vs (res:values stx-id vs))))))
 
-(define chk-key (make-continuation-mark-key 'chk))
+(define with-chk-param (make-parameter null))
 
 (define-simple-macro (with-chk ([k v] ...) e ...+)
-  (with-continuation-mark chk-key (list (cons k v) ...)
+  (parameterize ([with-chk-param
+                   (cons (list (cons k v) ...)
+                         (with-chk-param))])
     (let () e ...)))
 
 (require racket/pretty
@@ -77,9 +80,7 @@
     (display-info
      (append*
       (reverse
-       (continuation-mark-set->list
-        (current-continuation-marks)
-        chk-key)))))
+       (with-chk-param)))))
   (test-log! v))
 
 (define current-chk-escape (make-parameter *chk-escape!))
@@ -91,13 +92,17 @@
     (let ([old (p)])
       (λ (x) (old (not x)))))
   (parameterize ([current-chk-escape (invert current-chk-escape)])
-    (t)))
+    (with-chk (['inverted #t])
+      (t))))
 
 (define (*chk* t)
   (let/ec esc
     (define (escape p)
       (let ([old (p)])
-        (λ (x) (old x) (esc))))
+        (λ (x)
+          (old x)
+          (unless x
+            (esc)))))
     (parameterize ([current-chk-escape (escape current-chk-escape)])
       (t))))
 
@@ -205,14 +210,13 @@
 (begin-for-syntax
   (define-syntax-class test-expr
     #:attributes (stx e)
-    [pattern e:expr
-             #:attr stx #'(quote-syntax/keep-srcloc e)]
     [pattern (#:stx s e)
              #:attr stx #'(quote-syntax/keep-srcloc s)]
     [pattern (#:src s e)
              #:attr stx
-             #`(quote-syntax/keep-srcloc
-                #,(datum->syntax #'e #'e #'s))])
+             #`(datum->syntax #f 'e s)]
+    [pattern e:expr
+             #:attr stx #'(quote-syntax/keep-srcloc e)])
 
   (define-splicing-syntax-class strict-test
     #:commit
@@ -230,7 +234,9 @@
     [pattern (~seq #:= a:test-expr b:test-expr)
              #:attr unit
              (syntax/loc #'a
-               (check-equal? (D a.e a.stx) (D b.e b.stx)))])
+               (check-equal? (D a.e a.stx) (D b.e b.stx)))]
+    [pattern (~seq #:do e:expr)
+             #:attr unit #'e])
 
   (define-splicing-syntax-class test
     #:commit
@@ -239,15 +245,15 @@
              #:attr unit #'c.unit)
     (pattern (c:strict-test)
              #:attr unit #'c.unit)
-    [pattern (~seq a:expr b:expr)
+    [pattern (~seq a:test-expr b:test-expr)
              #:with (c:strict-test) (syntax/loc #'a (#:= a b))
              #:attr unit #'c.unit]
-    [pattern (~seq a:expr)
+    [pattern (~seq a:test-expr)
              #:with (c:strict-test) (syntax/loc #'a (#:t a))
              #:attr unit #'c.unit]))
 
 (define-simple-macro (chk e:test ...)
-  (begin e.unit ...))
+  (let () e.unit ...))
 (define-simple-macro (chk* e ...+)
   (*chk* (λ () e ...)))
 
@@ -258,29 +264,35 @@
 (module+ test
   (chk
    1 1
+   ;; Fail 1
    1 0
    #:! 1 0
+   ;; Fail 2
    #:! 1 1
 
    #:! #:! #:! 1 0
    #:! #:! 1 1
 
    #:! (/ 1 0) +inf.0
+   ;; Fail 3
    (/ 1 0) +inf.0
 
    (/ 1 0) (/ 1 0)
+   ;; Fail 4
    #:! (/ 1 0) (/ 1 0)
 
-   (error 'xxx "a") (error 'xxx "a")
-   #:! (error 'xxx "a") (error 'xxx "b")
+   (error 'fail "a") (error 'fail "a")
+   #:! (error 'fail "a") (error 'fail "b")
 
    #:! #:t (/ 1 0)
    #:t (values 0 1)
    #:t (values #f 1)
+   ;; Fail 5
    #:! #:t (values #f 1)
 
    1 1
    2 2
+   ;; Fail 6
    #:x (/ 1 0) "divided"
    #:x (/ 1 0) "division"
    #:x (/ 1 0) #rx"di.ision"
@@ -298,8 +310,10 @@
    #:! 2 3
 
    (values 1 2) (values 1 2)
+   ;; Fail 7
    (values 1 2) (values 2 3)
    #:! (values 1 2) (values 2 3)
+   ;; Fail 8
    (values 1 2) 3
    #:! (values 1 2) 3
    #:! 3 (values 1 2)
@@ -311,9 +325,41 @@
    [#:t 1]
    [#:= 1 1]
 
-   ;; XXX test with-chk
-   ;; XXX test chk*
-   ;; XXX test stx
-   ;; XXX test src
+   ;; You can change what the printed source AND location is
+   ;; Fail 9
+   #:= [#:stx one 1] 2
 
-   ))
+   ;; You can also change what JUST source location is
+   ;; Fail 10
+   #:= [#:src #'here 1] 2
+   ;; Fail 11
+   #:= [#:src '(there 99 1 22 1) 1] 2
+
+   ;; You can put in arbitrary code and definitions:
+   #:do (define x 1)
+   #:= x 1
+   #:do (printf "Hey, listen!\n")
+
+   ;; chk* is a form like "let ()" ensures the block exits on any
+   ;; failure. (This is a bit of a weird use-case, normally you'd use
+   ;; this to implement your own custom testing form, so you wouldn't
+   ;; immediately put a big chk form)
+   #:do
+   (chk* (chk #:= 1 1
+              ;; Fail 12
+              #:= 2 3
+              ;; NOT printed
+              #:do (printf "Hey, listen!")
+              ;; NOT Fail 13
+              #:= 5 6))
+
+   ;; with-chk allows you to add information to all failures contained
+   ;; in its body.
+   #:do
+   (with-chk (['module "testing"]
+              ['author "jay"])
+     ;; Fail 13
+     (chk 1 2)
+     (with-chk (['amazing? #t])
+       ;; Fail 14
+       (chk 2 3)))))
