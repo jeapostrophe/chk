@@ -1,6 +1,8 @@
 #lang info
 (define collection "chk")
-(define deps '("base"))
-(define build-deps '("scribble-lib" "racket-doc"))
-(define scribblings '(("chk.scrbl" ())))
+(define deps '("testing-util-lib"
+               "base"))
+(define build-deps '("sandbox-lib"
+                     "scribble-lib" "racket-doc"))
+(define scribblings '(("chk.scrbl" () ("Testing"))))
 (define version "0.0")

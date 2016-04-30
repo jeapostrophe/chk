@@ -1,6 +1,7 @@
 #lang scribble/manual
 @(require (for-label chk
-                     racket/base)
+                     racket/base
+                     syntax/srcloc)
           scribble/example
           racket/sandbox)
 
@@ -239,3 +240,20 @@ all of the failure details.
                  #:= 1 2))]
 
 }
+
+@section{Controlling Source Location and Syntax Display}
+
+Everywhere in the preceeding discussion where we referred to an
+expression evaluating to something, that position may be replaced with
+@racket[(#:stx _stx _e)] or @racket[(#:src _src _e)]. In both cases,
+the expression evaluated is @racket[_e]. However, if there is an
+error, then a different syntax (@racket[_stx], which is simply a
+datum) or source location (@racket[_src] which is evaluate to
+something that is a @racket[source-location?]) is reported.
+
+@examples[#:eval e
+          (chk #:= (#:stx one 1) (#:stx two 2))
+          (chk #:= (#:src #'here 1) 2)
+          (chk #:= (#:src '(there 99 1 22 1) "one") "two")]
+
+This is intended to be used by macros that produce @racket[chk]s.
