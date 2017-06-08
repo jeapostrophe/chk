@@ -26,9 +26,9 @@
         (format-v (syntax-e v))])]
     [(? exn:fail?)
      (with-output-to-string
-       (λ ()
-         (parameterize ([current-error-port (current-output-port)])
-           ((error-display-handler) (exn-message v) v))))]
+         (λ ()
+           (parameterize ([current-error-port (current-output-port)])
+             ((error-display-handler) (exn-message v) v))))]
     [(res:exn stx x)
      (format "~afrom\n~a" (format-v x) (format-v stx))]
     [(res:values stx x)
@@ -71,8 +71,8 @@
 
 (define-simple-macro (with-chk ([k v] ...) e ...+)
   (parameterize ([with-chk-param
-                   (cons (list (cons k v) ...)
-                         (with-chk-param))])
+                     (cons (list (cons k v) ...)
+                           (with-chk-param))])
     (let () e ...)))
 
 (define (*chk-escape! v)
@@ -285,7 +285,18 @@
              #:with (c:strict-test) (syntax/loc #'a (#:t a))
              #:attr unit #'c.unit]))
 
-(define-simple-macro (chk  e:test ... ) (let () e.unit ...))
+(define (arguments-say-to-run)
+  (define with-chk-lst (append* (reverse (with-chk-param))))
+  (define name-pair-or-false (findf (lambda (p) (eq? (car p) 'name)) with-chk-lst))
+  (define args (vector->list (current-command-line-arguments)))
+  (or (null? args)
+      (and name-pair-or-false
+           (ormap (lambda (pattern) (regexp-match? pattern (cdr name-pair-or-false)))
+                  (map regexp args)))))
+
+(define-simple-macro (chk  e:test ... )
+  (when (arguments-say-to-run) (let () e.unit ...)))
+
 (define-simple-macro (chk* e      ...+) (*chk* (λ () e ...)))
 (define-simple-macro (*chk-invert e   ) (*chk-invert* (λ () e)))
 
