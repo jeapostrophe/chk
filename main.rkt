@@ -26,9 +26,9 @@
         (format-v (syntax-e v))])]
     [(? exn:fail?)
      (with-output-to-string
-         (λ ()
-           (parameterize ([current-error-port (current-output-port)])
-             ((error-display-handler) (exn-message v) v))))]
+       (λ ()
+         (parameterize ([current-error-port (current-output-port)])
+           ((error-display-handler) (exn-message v) v))))]
     [(res:exn stx x)
      (format "~afrom\n~a" (format-v x) (format-v stx))]
     [(res:values stx x)
@@ -71,8 +71,8 @@
 
 (define-simple-macro (with-chk ([k v] ...) e ...+)
   (parameterize ([with-chk-param
-                     (cons (list (cons k v) ...)
-                           (with-chk-param))])
+                   (cons (list (cons k v) ...)
+                         (with-chk-param))])
     (let () e ...)))
 
 (define (*chk-escape! v)
@@ -285,10 +285,38 @@
              #:with (c:strict-test) (syntax/loc #'a (#:t a))
              #:attr unit #'c.unit]))
 
+(define-values (names-to-run run-filters)
+  (for/fold ([names empty] [filters #hasheq()])
+            ([arg (vector->list (current-command-line-arguments))])
+    (if (regexp-match-exact? #px".+=.+" arg)
+        (let ([arg-split (string-split arg "=")])
+          (values names (hash-set filters (car arg-split) (cadr arg-split))))
+        (values (cons (regexp arg) names) filters))))
+
+(printf "NAMES-TO-RUN: ~a\nRUN-FILTERS: ~a\n" names-to-run run-filters)
+        
 (define (arguments-say-to-run)
   (define with-chk-lst (append* (reverse (with-chk-param))))
+  (printf "WITH-CHK-LST: ~a\n" with-chk-lst)
   (define name-pair-or-false (findf (lambda (p) (eq? (car p) 'name)) with-chk-lst))
   (define args (vector->list (current-command-line-arguments)))
+
+  (define name-or-false (and name-pair-or-false (cdr name-pair-or-false)))
+
+  #;
+  (and
+   (or (hash-empty? run-filters)
+       (andmap (lambda (p)
+                 (define hash-fail (gensym))
+                 (equal? (hash-ref run-filters (car p) hash-fail)
+                         (cdr p)))
+               with-chk-lst))
+   (or (empty? names-to-run)
+       (ormap (lambda (n)
+                (equal? n name-or-false))
+              names-to-run)))
+                  
+  
   (or (null? args)
       (and name-pair-or-false
            (ormap (lambda (pattern) (regexp-match? pattern (cdr name-pair-or-false)))
