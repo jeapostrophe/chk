@@ -289,6 +289,8 @@
              #:with (c:strict-test) (syntax/loc #'a (#:t a))
              #:attr unit #'c.unit]))
 
+;; this should match any string which is a valid racket identifier
+;; and does not contain the '=' character.
 (define id-regexp "[^]\\[\\(\\){}\",\'`;#\\|\\\\=]+")
 (define key-val-regexp (regexp (string-append id-regexp "=" id-regexp)))
 
