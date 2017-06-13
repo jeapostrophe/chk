@@ -4,6 +4,7 @@
          racket/function
          syntax/parse/define
          (for-syntax racket/base
+                     syntax/location
                      syntax/parse
                      syntax/srcloc)
          syntax/quote
@@ -75,9 +76,12 @@
                          (with-chk-param))])
     (let () e ...)))
 
+(define (flatten-with-chk-param)
+  (append* (reverse (with-chk-param))))
+
 (define (*chk-escape! v)
   (unless v
-    (display-info (append* (reverse (with-chk-param)))))
+    (display-info (flatten-with-chk-param)))
   (test-log! v))
 
 (define current-chk-escape (make-parameter *chk-escape!))
@@ -285,45 +289,47 @@
              #:with (c:strict-test) (syntax/loc #'a (#:t a))
              #:attr unit #'c.unit]))
 
-(define-values (names-to-run run-filters)
+(define id-regexp "[^]\\[\\(\\){}\",\'`;#\\|\\\\=]+")
+(define key-val-regexp (regexp (string-append id-regexp "=" id-regexp)))
+
+(define (get-filters)
   (for/fold ([names empty] [filters #hasheq()])
             ([arg (vector->list (current-command-line-arguments))])
-    (if (regexp-match-exact? #px".+=.+" arg)
-        (let ([arg-split (string-split arg "=")])
-          (values names (hash-set filters (car arg-split) (cadr arg-split))))
-        (values (cons (regexp arg) names) filters))))
+    (cond [(regexp-match-exact? key-val-regexp arg)
+           (define arg-split (string-split arg "="))
+           (define arg-name (car arg-split))
+           (define arg-val (read (open-input-string (cadr arg-split))))
+           (values names (hash-set filters arg-name arg-val))]
+          [else
+           (values (cons (regexp arg) names) filters)])))
 
-(printf "NAMES-TO-RUN: ~a\nRUN-FILTERS: ~a\n" names-to-run run-filters)
-        
-(define (arguments-say-to-run)
-  (define with-chk-lst (append* (reverse (with-chk-param))))
-  (printf "WITH-CHK-LST: ~a\n" with-chk-lst)
-  (define name-pair-or-false (findf (lambda (p) (eq? (car p) 'name)) with-chk-lst))
-  (define args (vector->list (current-command-line-arguments)))
+(define (arguments-say-to-run file line)
+  (with-chk (['file (path->string file)]
+             ['line line])
+    (define-values (names-to-run run-filters) (get-filters))
+    (define with-chk-lst (flatten-with-chk-param))
+    (and
+     (or (hash-empty? run-filters)
+         (andmap (lambda (pr)
+                   (define hash-fail (gensym))
+                   (equal? (hash-ref run-filters (car pr) hash-fail)
+                           (cdr pr))
+                   with-chk-lst)))
+     (or (empty? names-to-run)
+         (let* ([name-pair-or-false (findf (lambda (p) (eq? (car p) 'name)) with-chk-lst)]
+                [name-or-false (and name-pair-or-false (cdr name-pair-or-false))])
+           (ormap (lambda (name-regx)
+                    (regexp-match? name-regx name-or-false))
+                  names-to-run))))))
 
-  (define name-or-false (and name-pair-or-false (cdr name-pair-or-false)))
-
-  #;
-  (and
-   (or (hash-empty? run-filters)
-       (andmap (lambda (p)
-                 (define hash-fail (gensym))
-                 (equal? (hash-ref run-filters (car p) hash-fail)
-                         (cdr p)))
-               with-chk-lst))
-   (or (empty? names-to-run)
-       (ormap (lambda (n)
-                (equal? n name-or-false))
-              names-to-run)))
-                  
-  
-  (or (null? args)
-      (and name-pair-or-false
-           (ormap (lambda (pattern) (regexp-match? pattern (cdr name-pair-or-false)))
-                  (map regexp args)))))
-
-(define-simple-macro (chk  e:test ... )
-  (when (arguments-say-to-run) (let () e.unit ...)))
+(define-syntax (chk stx)
+  (syntax-parse stx
+    [(_ e:test ...)
+     (quasisyntax/loc stx
+       (when (arguments-say-to-run
+              #,(syntax-source-file-name stx)
+              #,(syntax-line stx))
+         (let () e.unit ...)))]))
 
 (define-simple-macro (chk* e      ...+) (*chk* (λ () e ...)))
 (define-simple-macro (*chk-invert e   ) (*chk-invert* (λ () e)))
