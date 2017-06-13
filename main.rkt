@@ -293,21 +293,26 @@
 ;; and does not contain the '=' character.
 (define id-regexp "[^]\\[\\(\\){}\",\'`;#\\|\\\\=]+")
 (define key-val-regexp (regexp (string-append id-regexp "=" id-regexp)))
-
+(define file-sym (gensym 'file))
+(define line-sym (gensym 'line))
 (define (get-filters)
   (for/fold ([names empty] [filters #hasheq()])
             ([arg (vector->list (current-command-line-arguments))])
     (cond [(regexp-match-exact? key-val-regexp arg)
            (define arg-split (string-split arg "="))
-           (define arg-name (car arg-split))
+           (define arg-name
+             (cond [(regexp-match-exact? #rx"[Ff][Ii][Ll][Ee]" (car arg-split))
+                    file-sym]
+                   [(regexp-match-exact? #rx"[Ll][Ii][Nn][Ee]" (car arg-split))
+                    line-sym]
+                   [else (car arg-split)]))
            (define arg-val (read (open-input-string (cadr arg-split))))
            (values names (hash-set filters arg-name arg-val))]
           [else
            (values (cons (regexp arg) names) filters)])))
-
 (define (arguments-say-to-run file line)
-  (with-chk (['file (path->string file)]
-             ['line line])
+  (with-chk ([file-sym (path->string file)]
+             [line-sym line])
     (define-values (names-to-run run-filters) (get-filters))
     (define with-chk-lst (flatten-with-chk-param))
     (and
