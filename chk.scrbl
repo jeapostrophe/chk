@@ -241,6 +241,105 @@ all of the failure details.
 
 }
 
+@section{Filtering Test with Command-line Arguments}
+
+The key/value pairs specified in the current context by
+@racket{with-chk} can also be used to group tests into catagories
+which can be selected and run by supplying command-line arguments to
+the module running the tests. Before each test is run,
+@racketmodname{chk} will use the value of
+@racket{current-command-line-arguments} to construct a list of names
+and key/value pairs.
+
+Key/value pairs are specified by arguments of the form `key`=`value`.
+If a non-zero amount of key/value pairs are specified, then only tests
+which strictly match the set of key/value pairs specified on the
+command line will be executed.
+
+@examples[#:eval e
+          (parameterize ([current-command-line-arguments (vector "foo=bar")])
+            (with-chk (['foo "bar"])
+              (chk #:= 1 2))
+            (chk #:= 2 3))]
+
+The command-line argument @racket["foo=bar"] corresponds with the
+racket pair @racket[('foo . "bar")]. In the above example, the former
+test runs because it has been called inside of an expression where the
+key @racket['foo] matches the value @racket["bar"], but the latter
+test is skipped.
+
+Keys read from the command line are always
+treated as symbols and compared using @racket[eq?]. Values are
+processed using @racket[read] and are always compared using
+@racket[equal?]. Because of this, it is possible to filter against
+values more complex than just strings or symbols.
+
+@examples[#:eval e
+          (parameterize ([current-command-line-arguments (vector "data='(list 1 2 3)")])
+            (with-chk (['data (list 1 2 3)])
+              (chk #:= 1 2)))]
+
+If multiple key/value pairs are present on the command line, then
+tests will only run if they match against *all* specified key/value
+pairs.
+
+@examples[#:eval e
+          (parameterize ([current-command-line-arguments (vector "foo=bar" "number=6")])
+            (with-chk (['foo "bar"])
+              (chk #:= 1 2)
+              (with-chk (['number 6])
+                (chk #:= 2 3))))]
+
+In the above example, the former test does not run because it is
+defined in a context in which only the key @racket['foo] has a value.
+The latter test, however, runs because its context contains both the
+keys @racket['foo] and @racket['number].
+
+The keys @racket['file] and @racket['line] are special cases when
+present in the command-line arguments. They are case insensitive and
+are matched against the file name and line number of current test.
+@racketmodname{chk} tracks the values of these keys internally, so it
+is not possible to spoof the current file or line values by calling
+@racket[(with-chk (['file "foo.rkt"] ['line 100]) ...)] or anything
+similar.
+
+----- TODO: Examples with file/line? ------
+
+Any command-line arguments which do not fit the `name`=`value` pattern
+are treated as regular expressions and used as a set of names to run.
+In the execution context of the test, these names are compared against
+the value corresponding with the @racket['name] key. Unlike with
+key/value pairs, a test's name needs only to match against one of the
+names specified on the command line in order to be run. This way,
+multiple tests can be specified to be run. Tests with no
+@racket['name] key specified will only be run in the case that no
+names are present in the command-line arguments.
+
+@examples[#:eval e
+          (parameterize ([current-command-line-arguments (vector "test1" "test2")])
+            (with-chk (['name "test1"])
+              (chk #:= 1 2))
+            (with-chk (['name "test2"])
+              (chk #:= 2 3))
+            (with-chk #:= 3 4))]
+
+If both names and key/value pairs are present in the command-line
+arguments, then a test must satisfy both predicates in order to be
+run.
+
+@examples[#:eval e
+          (parameterize ([current-command-line-arguments (vector "test1" "foo=bar")])
+            (with-chk (['name "test1"])
+              (chk #:= 1 2))
+            (with-chk (['foo "bar"])
+              (chk #:= 2 3)))]
+
+In the above example, the command-line arguments are specifying that
+only tests which match the name "test1" *and* the key/value pair
+"foo=bar" should be run. Neither test satisfies both conditions, so
+neither test is run.
+
+
 @section{Controlling Source Location and Syntax Display}
 
 Everywhere in the preceeding discussion where we referred to an
