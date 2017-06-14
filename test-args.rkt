@@ -11,15 +11,12 @@
       (begin e ... (get-output-string result)))))
 
 (module+ test
-
   (struct ts (a b) #:transparent)
-  
   (define (go)
     (with-chk (['name "foo"]
                ['number 6]
                ['struct (ts 'a 5)])
       (chk 1 2)))
-
   ;; Check error
   (when (zero? (string-length (run-test ("foo") (go))))
     (eprintf "Test 1 failed\n"))
@@ -47,4 +44,16 @@
   ;; Check no error - wrong file
   (unless (zero? (string-length (run-test ("foo" "file=foobar.rkt" "line=21") (go))))
     (eprintf "Test 9 failed\n"))
+
+  (define (go2)
+    (chk 2 3))
+  ;; Check error
+  (when (zero? (string-length (run-test () (go2))))
+    (eprintf "Test 10 failed\n"))
+  ;; Check error - should print since file name is correct
+  (when (zero? (string-length (run-test ("file=test-args.rkt") (go2))))
+    (eprintf "Test 11 failed\n"))
+  ;; Check no error
+  (unless (zero? (string-length (run-test ("foo") (go2))))
+    (eprintf "Test 12 failed\n"))
   )
