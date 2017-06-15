@@ -293,41 +293,53 @@
 ;; and does not contain the '=' character.
 (define id-regexp "[^]\\[\\(\\){}\",\'`;#\\|\\\\=]+")
 (define key-val-regexp (regexp (string-append id-regexp "=.+")))
-(define file-sym (gensym 'file))
-(define line-sym (gensym 'line))
+
 (define (get-filters)
-  (for/fold ([names empty] [filters #hasheq()])
+  (for/fold ([names empty] [filters #hasheq()] [files empty] [lines empty])
             ([arg (vector->list (current-command-line-arguments))])
-    (cond [(regexp-match-exact? key-val-regexp arg)
-           (define arg-split (string-split arg "="))
-           (define arg-name
-             (cond [(regexp-match-exact? #rx"[Ff][Ii][Ll][Ee]" (car arg-split))
-                    file-sym]
-                   [(regexp-match-exact? #rx"[Ll][Ii][Nn][Ee]" (car arg-split))
-                    line-sym]
-                   [else (car arg-split)]))
-           (define arg-val (read (open-input-string (cadr arg-split))))
-           (values names (hash-set filters arg-name arg-val))]
-          [else
-           (values (cons (regexp arg) names) filters)])))
+    (cond
+      [(regexp-match-exact? #rx"[Ff][Ii][Ll][Ee]=.+" arg)
+       (define files (cons (regexp (substring arg 5)) files))
+       (values names filters files lines)]
+      [(regexp-match-exact? #rx"[Ll][Ii][Nn][Ee]=.+" arg)
+       (define lines (cons (string->number (substring arg 5)) lines))
+       (values names filters files lines)]
+      [(regexp-match-exact? key-val-regexp arg)
+       (define split (string-split arg "="))
+       (define arg-name (string->symbol (car split)))
+       (define arg-val (cadr split))
+       (values names (hash-set filters arg-name arg-val) files lines)]
+      [else
+       (values (cons (regexp arg) names) filters files lines)])))
+
 (define (arguments-say-to-run file line)
-  (with-chk ([file-sym (if file (path->string file) "")]
-             [line-sym (or line 0)])
-    (define-values (names-to-run run-filters) (get-filters))
-    (define with-chk-lst (flatten-with-chk-param))
-    (and
-     (or (hash-empty? run-filters)
-         (andmap (lambda (pr)
-                   (define hash-fail (gensym))
-                   (equal? (hash-ref run-filters (car pr) hash-fail)
-                           (cdr pr)))
-                   with-chk-lst))
-     (or (empty? names-to-run)
-         (let* ([name-pair-or-false (findf (lambda (p) (eq? (car p) 'name)) with-chk-lst)]
-                [name-or-false (and name-pair-or-false (cdr name-pair-or-false))])
-           (ormap (lambda (name-regx)
-                    (regexp-match? name-regx (or name-or-false "")))
-                  names-to-run))))))
+  (printf "FILE: ~a\nLINE: ~a\n" file line)
+  (define-values
+    (names-to-run run-filters files-to-run lines-to-run)
+    (get-filters))
+  (define with-chk-lst (flatten-with-chk-param))
+  (display "CHK-LST: ") (write with-chk-lst) (newline)
+  (display "NAMES-TO-RUN: ") (write names-to-run) (newline)
+  (display "RUN-FILTERS: ") (write run-filters) (newline)
+  (and
+   (or (hash-empty? run-filters)
+       (and (andmap (lambda (pr) (string=? (hash-ref run-filters (car pr) "")
+                                           (~a (cdr pr))))
+                    with-chk-lst)
+            (not (empty? with-chk-lst))))
+   (or (empty? files-to-run)
+       (ormap (lambda (file-rex)
+                (regexp-match? file-rex (if file (path->string file) "")))
+              files-to-run))
+   (or (empty? lines-to-run)
+       (ormap (lambda (ln) (equal? ln line)) lines-to-run))
+   (or (empty? names-to-run)
+       (let* ([name-pair-or-false (findf
+                                   (lambda (p) (eq? (car p) 'name))
+                                   with-chk-lst)]
+              [name (if name-pair-or-false (~a (car name-pair-or-false)) "")])
+         (ormap (lambda (name-regx) (regexp-match? name-regx name))
+                names-to-run)))))
 
 (define-syntax (chk stx)
   (syntax-parse stx
