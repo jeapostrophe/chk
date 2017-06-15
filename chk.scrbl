@@ -251,10 +251,10 @@ the module running the tests. Before each test is run,
 @racket[current-command-line-arguments] to construct a list of names
 and key/value pairs.
 
-Key/value pairs are specified by arguments of the form `key`=`value`.
+Key/value pairs are specified by arguments of the form @tt{key=value}.
 If a non-zero amount of key/value pairs are specified, then only tests
-which strictly match the set of key/value pairs specified on the
-command line will be executed.
+which match the set of key/value pairs specified on the command line
+will be executed.
 
 @examples[#:eval e
           (parameterize ([current-command-line-arguments (vector "foo=bar")])
@@ -280,7 +280,7 @@ values more complex than just strings or symbols.
               (chk #:= 1 2)))]
 
 If multiple key/value pairs are present on the command line, then
-tests will only run if they match against *all* specified key/value
+tests will only run if they match against @italic{all} specified key/value
 pairs.
 
 @examples[#:eval e
@@ -293,19 +293,18 @@ pairs.
 In the above example, the former test does not run because it is
 defined in a context in which only the key @racket['foo] has a value.
 The latter test, however, runs because its context contains both the
-keys @racket['foo] and @racket['number].
+keys @racket['foo] and @racket['number] (and their values match the
+values specified in the arguments).
 
 The keys @racket['file] and @racket['line] are special cases when
 present in the command-line arguments. They are case insensitive and
 are matched against the file name and line number of current test.
-@racketmodname{chk} tracks the values of these keys internally, so it
+@racketmodname[chk] tracks the values of these keys internally, so it
 is not possible to spoof the current file or line values by calling
 @racket[(with-chk (['file "foo.rkt"] ['line 100]) ...)] or anything
 similar.
 
------ TODO: Examples with file/line? ------
-
-Any command-line arguments which do not fit the `name`=`value` pattern
+Any command-line arguments which do not fit the @tt{name=value} pattern
 are treated as regular expressions and used as a set of names to run.
 In the execution context of the test, these names are compared against
 the value corresponding with the @racket['name] key. Unlike with
@@ -335,8 +334,8 @@ run.
               (chk #:= 2 3)))]
 
 In the above example, the command-line arguments are specifying that
-only tests which match the name "test1" *and* the key/value pair
-"foo=bar" should be run. Neither test satisfies both conditions, so
+only tests which match the name @tt{test1} @italic{and} the key/value pair
+@tt{foo=bar} should be run. Neither test satisfies both conditions, so
 neither test is run.
 
 @section{Controlling Source Location and Syntax Display}
