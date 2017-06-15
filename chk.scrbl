@@ -254,7 +254,8 @@ and key/value pairs.
 Key/value pairs are specified by arguments of the form @tt{key=value}.
 If a non-zero amount of key/value pairs are specified, then only tests
 which match the set of key/value pairs specified on the command line
-will be executed.
+will be executed. The command-line argument @racket["foo=bar"], for
+example, corresponds with the racket pair @racket[('foo . "bar")].
 
 @examples[#:eval e
           (parameterize ([current-command-line-arguments (vector "foo=bar")])
@@ -262,21 +263,19 @@ will be executed.
               (chk #:= 1 2))
             (chk #:= 2 3))]
 
-The command-line argument @racket["foo=bar"] corresponds with the
-racket pair @racket[('foo . "bar")]. In the above example, the former
-test runs because it has been called inside of an expression where the
-key @racket['foo] matches the value @racket["bar"], but the latter
-test is skipped.
+In the above example, the former test runs because it has been called
+inside of an expression where the key @racket['foo] matches the value
+@racket["bar"], but the latter test is skipped.
 
-Keys read from the command line are always
-treated as symbols and compared using @racket[eq?]. Values are
-processed using @racket[read] and are always compared using
-@racket[equal?]. Because of this, it is possible to filter against
-values more complex than just strings or symbols.
+Keys read from the command line are always treated as symbols and
+compared using @racket[eq?]. Values are treated as strings, and the
+runtime values that they are compared against are cast to string with
+@racket[~a] before the comparison. Because of this, it is simple to
+filter against values of any transparent data type, not just strings.
 
 @examples[#:eval e
-          (parameterize ([current-command-line-arguments (vector "data='(list 1 2 3)")])
-            (with-chk (['data (list 1 2 3)])
+          (parameterize ([current-command-line-arguments (vector "data=(1 2 3)")])
+            (with-chk (['data '(1 2 3)])
               (chk #:= 1 2)))]
 
 If multiple key/value pairs are present on the command line, then
@@ -292,9 +291,8 @@ pairs.
 
 In the above example, the former test does not run because it is
 defined in a context in which only the key @racket['foo] has a value.
-The latter test, however, runs because its context contains both the
-keys @racket['foo] and @racket['number] (and their values match the
-values specified in the arguments).
+The latter test runs because its context contains the correct values
+for both @racket['foo] and @racket['number].
 
 The keys @racket['file] and @racket['line] are special cases when
 present in the command-line arguments. They are case insensitive and
@@ -335,7 +333,7 @@ run.
 
 In the above example, the command-line arguments are specifying that
 only tests which match the name @tt{test1} @italic{and} the key/value pair
-@tt{foo=bar} should be run. Neither test satisfies both conditions, so
+@racket[('foo . "bar")] should be run. Neither test satisfies both conditions, so
 neither test is run.
 
 @section{Controlling Source Location and Syntax Display}

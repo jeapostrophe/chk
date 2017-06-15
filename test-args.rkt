@@ -1,14 +1,17 @@
 #lang racket/base
 
 (require
-  chk
-  syntax/parse/define)
+  (for-syntax racket/base syntax/parse)
+  chk)
 
-(define-simple-macro (run-test (args ...) e ...+)
-  (let ([result (open-output-string)])
-    (parameterize ([current-error-port result]
-                   [current-command-line-arguments (vector args ...)])
-      (begin e ... (get-output-string result)))))
+(define-syntax (run-test stx)
+  (syntax-parse stx
+    [(_ (args ...) e ...+)
+     (quasisyntax/loc stx
+       (let ([result (open-output-string)])
+         (parameterize ([current-error-port result]
+                        [current-command-line-arguments (vector args ...)])
+           (begin e ... (get-output-string result)))))]))
 
 (module+ test
   (struct ts (a b) #:transparent)
@@ -36,7 +39,7 @@
   (unless (zero? (string-length (run-test ("foo" "number=7") (go))))
     (eprintf "Test 6 failed\n"))
   ;; Check error - name, file, and line all match
-  (when (zero? (string-length (run-test ("foo" "file=test-args.rkt" "line=21") (go))))
+  (when (zero? (string-length (run-test ("foo" "file=test-args.rkt" "line=39") (go))))
     (eprintf "Test 7 failed\n"))
   ;; Check no error - wrong line number
   (unless (zero? (string-length (run-test ("foo" "file=test-args.rkt" "line=2") (go))))
