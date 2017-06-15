@@ -292,7 +292,7 @@
 ;; this should match any string which is a valid racket identifier
 ;; and does not contain the '=' character.
 (define id-regexp "[^]\\[\\(\\){}\",\'`;#\\|\\\\=]+")
-(define key-val-regexp (regexp (string-append id-regexp "=" id-regexp)))
+(define key-val-regexp (regexp (string-append id-regexp "=.+")))
 (define file-sym (gensym 'file))
 (define line-sym (gensym 'line))
 (define (get-filters)
@@ -311,8 +311,8 @@
           [else
            (values (cons (regexp arg) names) filters)])))
 (define (arguments-say-to-run file line)
-  (with-chk ([file-sym (path->string file)]
-             [line-sym line])
+  (with-chk ([file-sym (if file (path->string file) "")]
+             [line-sym (or line 0)])
     (define-values (names-to-run run-filters) (get-filters))
     (define with-chk-lst (flatten-with-chk-param))
     (and
@@ -320,13 +320,13 @@
          (andmap (lambda (pr)
                    (define hash-fail (gensym))
                    (equal? (hash-ref run-filters (car pr) hash-fail)
-                           (cdr pr))
-                   with-chk-lst)))
+                           (cdr pr)))
+                   with-chk-lst))
      (or (empty? names-to-run)
          (let* ([name-pair-or-false (findf (lambda (p) (eq? (car p) 'name)) with-chk-lst)]
                 [name-or-false (and name-pair-or-false (cdr name-pair-or-false))])
            (ormap (lambda (name-regx)
-                    (regexp-match? name-regx name-or-false))
+                    (regexp-match? name-regx (or name-or-false "")))
                   names-to-run))))))
 
 (define-syntax (chk stx)
