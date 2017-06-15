@@ -339,7 +339,6 @@ only tests which match the name "test1" *and* the key/value pair
 "foo=bar" should be run. Neither test satisfies both conditions, so
 neither test is run.
 
-
 @section{Controlling Source Location and Syntax Display}
 
 Everywhere in the preceeding discussion where we referred to an
