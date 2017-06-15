@@ -241,14 +241,14 @@ all of the failure details.
 
 }
 
-@section{Filtering Test with Command-line Arguments}
+@section{Filtering Tests with Command-line Arguments}
 
 The key/value pairs specified in the current context by
-@racket{with-chk} can also be used to group tests into catagories
+@racket[with-chk] can also be used to group tests into catagories
 which can be selected and run by supplying command-line arguments to
 the module running the tests. Before each test is run,
-@racketmodname{chk} will use the value of
-@racket{current-command-line-arguments} to construct a list of names
+@racketmodname[chk] will use the value of
+@racket[current-command-line-arguments] to construct a list of names
 and key/value pairs.
 
 Key/value pairs are specified by arguments of the form `key`=`value`.
@@ -321,7 +321,7 @@ names are present in the command-line arguments.
               (chk #:= 1 2))
             (with-chk (['name "test2"])
               (chk #:= 2 3))
-            (with-chk #:= 3 4))]
+            (chk #:= 3 4))]
 
 If both names and key/value pairs are present in the command-line
 arguments, then a test must satisfy both predicates in order to be
