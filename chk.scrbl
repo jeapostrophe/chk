@@ -297,10 +297,9 @@ for both @racket['foo] and @racket['number].
 The keys @racket['file] and @racket['line] are special cases when
 present in the command-line arguments. They are case insensitive and
 are matched against the file name and line number of current test.
-@racketmodname[chk] tracks the values of these keys internally, so it
-is not possible to spoof the current file or line values by calling
-@racket[(with-chk (['file "foo.rkt"] ['line 100]) ...)] or anything
-similar.
+Files are treated as regular expressions. Multiple file names and
+line numbers may be specified on the command line to allow more tests
+through in a single test run.
 
 Any command-line arguments which do not fit the @tt{name=value} pattern
 are treated as regular expressions and used as a set of names to run.
@@ -332,7 +331,7 @@ run.
               (chk #:= 2 3)))]
 
 In the above example, the command-line arguments are specifying that
-only tests which match the name @tt{test1} @italic{and} the key/value pair
+only tests which match the name @racket["name1"] @italic{and} the key/value pair
 @racket[('foo . "bar")] should be run. Neither test satisfies both conditions, so
 neither test is run.
 
