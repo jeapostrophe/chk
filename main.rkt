@@ -319,12 +319,6 @@
   (define with-chk-hash
     (for/fold ([ht #hasheq()]) ([chk-var (flatten-with-chk-param)])
       (hash-set ht (car chk-var) (cdr chk-var))))
-  (display "NAMES-TO-RUN: ") (writeln names-to-run)
-  (display "K/V-FILTERS: ") (writeln k/v-filters)
-  (display "FILES-TO-RUN: ") (writeln files-to-run)
-  (display "LINES-TO-RUN: ") (writeln lines-to-run)
-  (display "WITH-CHK-HASH: ") (writeln with-chk-hash)
-  (newline)
   (and
    (andmap (lambda (k/v)
              (define hash-fail (gensym))
