@@ -299,11 +299,11 @@
             ([arg (vector->list (current-command-line-arguments))])
     (cond
       [(regexp-match-exact? #rx"[Ff][Ii][Ll][Ee]=.+" arg)
-       (define files (cons (regexp (substring arg 5)) files))
-       (values names filters files lines)]
+       (define new-files (cons (regexp (substring arg 5)) files))
+       (values names filters new-files lines)]
       [(regexp-match-exact? #rx"[Ll][Ii][Nn][Ee]=.+" arg)
-       (define lines (cons (string->number (substring arg 5)) lines))
-       (values names filters files lines)]
+       (define new-lines (cons (string->number (substring arg 5)) lines))
+       (values names filters files new-lines)]
       [(regexp-match-exact? key-val-regexp arg)
        (define split (string-split arg "="))
        (define arg-name (string->symbol (car split)))
@@ -319,6 +319,12 @@
   (define with-chk-hash
     (for/fold ([ht #hasheq()]) ([chk-var (flatten-with-chk-param)])
       (hash-set ht (car chk-var) (cdr chk-var))))
+  (display "NAMES-TO-RUN: ") (writeln names-to-run)
+  (display "K/V-FILTERS: ") (writeln k/v-filters)
+  (display "FILES-TO-RUN: ") (writeln files-to-run)
+  (display "LINES-TO-RUN: ") (writeln lines-to-run)
+  (display "WITH-CHK-HASH: ") (writeln with-chk-hash)
+  (newline)
   (and
    (andmap (lambda (k/v)
              (define hash-fail (gensym))
