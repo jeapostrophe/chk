@@ -2,7 +2,19 @@
 
 (require chk
          syntax/parse/define
-         racket/format)
+         racket/format
+         (for-syntax racket/base
+                     syntax/location))
+
+(define-syntax (current-file-name stx)
+  (with-syntax ([file (syntax-source-file-name stx)])
+    (syntax-case stx()
+      [_ #'file])))
+
+(define-syntax (current-line-number stx)
+  (with-syntax ([line (syntax-line stx)])
+    (syntax-case stx ()
+      [_ #'line])))
 
 (define-simple-macro (with-cmd (args ...) e)
   (parameterize ([current-command-line-arguments (vector args ...)])
@@ -25,20 +37,32 @@
       (eprintf "TEST FAILED: (check-no-error ~s ~a)\n~a\n"
                (map ~a (list args ...)) (quote e) result))))
 
+(define FILE-NAME (path->string (current-file-name)))
+
 (module+ test
+  (define file-name-arg (format "file=~a" FILE-NAME))
+  (define wrong-file-name-arg
+    (format "file=~a"
+            (list->string (map (compose integer->char add1 char->integer)
+                               (string->list FILE-NAME)))))
+  
   (define (go)
     (with-chk (['name "foo"]
                ['number 6])
-      (chk 1 2)))
+      (chk 1 2))) (define GO-LINE-NUM (current-line-number)) ;; Keep this on same line!
+  (define go-line-num-arg (format "line=~a" GO-LINE-NUM))
+  (define wrong-go-line-num-arg (format "line=~a" (+ GO-LINE-NUM 100)))
+  
   (check-error ("foo") (go))
   (check-error ("number=6") (go))
   (check-no-error ("number=7") (go))
   (check-no-error ("zog") (go))
   (check-error ("foo" "zog") (go))
   (check-no-error ("foo" "number=7") (go))
-  (check-error ("foo" "file=test-args.rkt" "line=32") (go))
-  (check-no-error ("foo" "file=test-args.rkt" "line=1") (go))
-  (check-no-error ("foo" "file=foobar.rkt" "line=32") (go))
+  (check-error ("foo" file-name-arg go-line-num-arg) (go))
+  (check-no-error ("foo" file-name-arg wrong-go-line-num-arg) (go))
+  (check-no-error ("foo" wrong-file-name-arg go-line-num-arg) (go))
+  
   (define (go2)
     (chk 2 3))
   (check-error () (go2))
