@@ -68,4 +68,9 @@
   (check-error () (go2))
   (check-error ("file=test-args.rkt") (go2))
   (check-no-error ("foo") (go2))
+
+  (define (go3)
+    (with-chk (['foo "abc=def"])
+      (chk 3 4)))
+  (check-error ("foo=abc=def") (go3))
   )
