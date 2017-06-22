@@ -302,12 +302,13 @@
        (define new-files (cons (regexp (substring arg 5)) files))
        (values names filters new-files lines)]
       [(regexp-match-exact? #rx"[Ll][Ii][Nn][Ee]=.+" arg)
-       (define new-lines (cons (string->number (substring arg 5)) lines))
+       (define line-num (string->number (substring arg 5)))
+       (define new-lines (if line-num (cons line-num lines) lines))
        (values names filters files new-lines)]
       [(regexp-match-exact? key-val-regexp arg)
        (define split (string-split arg "="))
-       (define arg-name (string->symbol (car split)))
-       (define arg-val (cadr split))
+       (define arg-name (string->symbol (first split)))
+       (define arg-val (string-join (rest split) "="))
        (values names (cons (cons arg-name arg-val) filters) files lines)]
       [else
        (values (cons (regexp arg) names) filters files lines)])))
