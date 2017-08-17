@@ -1,9 +1,10 @@
 #lang racket/base
 (module+ test
-  (require chk racket/runtime-path racket/file)
+  (require chk racket/runtime-path racket/file rackunit/log)
   
   (define err-rec-p (open-output-string))
-  (parameterize ([current-error-port err-rec-p])
+  (parameterize ([current-error-port err-rec-p]
+                 [test-log-enabled? #f])
     (chk #:! #:x (/ 1 0) "division")
     (chk
      1 1
@@ -128,11 +129,4 @@
      ;; Fail 20
      #:? even? "two"
      ;; Fail 21
-     #:? (/ 1 0) 0))
-
-  (define actual (get-output-string err-rec-p))
-  (define-runtime-path test.expected "test.expected")
-  (define expected (file->string test.expected))
-  (unless (string=? actual expected)
-    (display actual)
-    (error 'chk "Test output wrong")))
+     #:? (/ 1 0) 0)))

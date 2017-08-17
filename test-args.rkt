@@ -3,6 +3,7 @@
 (require chk
          syntax/parse/define
          racket/format
+         rackunit/log
          (for-syntax racket/base
                      syntax/location))
 
@@ -23,8 +24,10 @@
 (define-simple-macro (run-test (args ...) e)
   (with-cmd (args ...)
     (let ([result (open-output-string)])
-      (parameterize ([current-error-port result])
-        (begin e (get-output-string result))))))
+      (parameterize ([current-error-port result]
+                     [test-log-enabled? #f])
+        e)
+      (get-output-string result))))
 
 (define-simple-macro (check-error (args ...) e)
   (when (zero? (string-length (run-test (args ...) e)))
@@ -72,5 +75,4 @@
   (define (go3)
     (with-chk (['foo "abc=def"])
       (chk 3 4)))
-  (check-error ("foo=abc=def") (go3))
-  )
+  (check-error ("foo=abc=def") (go3)))
