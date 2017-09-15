@@ -1,2 +1,2 @@
 #lang info
-(define scribblings '("chk.scrbl"))
+(define scribblings '(("chk.scrbl")))
