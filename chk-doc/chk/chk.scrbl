@@ -209,6 +209,8 @@ tests within @racket[(let () body ...)].
                 #:? even? x)
            (chk #:? odd? (add1 x)))]}
 
+@defthing[chk-fail-first? (parameter/c boolean?)]{A parameter which controls whether @racket[chk] will quit after the first failure.}
+
 @section{Contextual Failure Reporting}
 
 @defform[(with-chk ([key value] ...) body ...+)]{

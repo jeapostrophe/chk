@@ -79,10 +79,13 @@
 (define (flatten-with-chk-param)
   (append* (reverse (with-chk-param))))
 
+(define chk-fail-first? (make-parameter #f))
 (define (*chk-escape! v)
+  (test-log! v)
   (unless v
-    (display-info (flatten-with-chk-param)))
-  (test-log! v))
+    (display-info (flatten-with-chk-param))
+    (when (chk-fail-first?)
+      (error 'chk "Failed check."))))
 
 (define current-chk-escape (make-parameter *chk-escape!))
 (define (*chk-fail!) ((current-chk-escape) #f))
@@ -350,4 +353,5 @@
 (provide chk
          chk*
          with-chk
-         chk-inform!)
+         chk-inform!
+         chk-fail-first?)
